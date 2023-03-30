@@ -1,10 +1,15 @@
-provider "aws" {
-  region = "eu-west-2"
+locals {
+  http_port = 80
+  https_port = 443
+  any_port = 0
+  all_ips      = ["0.0.0.0/0"]
+  tcp_protocol = "tcp"
 }
 
 resource "aws_instance" "hello_server" {
   ami           = "ami-0055e70f580e9ae80"
-  instance_type = "t2.micro"
+  # instance_type = "t2.micro"
+  instance_type = var.instance_type
   vpc_security_group_ids = [aws_security_group.example_security_group.id]
   user_data = <<-EOF
               #!/bin/bash
@@ -17,7 +22,7 @@ resource "aws_instance" "hello_server" {
   user_data_replace_on_change = true
 
   tags = {
-    Name = "hello"
+    Name = "${var.environment_name}-hello"
   }
 
   iam_instance_profile = aws_iam_instance_profile.iam_readonly_profile.name
@@ -25,35 +30,36 @@ resource "aws_instance" "hello_server" {
 
 resource "aws_security_group" "example_security_group" {
   # id          = "example-security-group-id"
-  name_prefix = "example-security-group"
+  name_prefix = "${var.security_group}-group"
+  # name_prefix = "example-security-group"
   description = "Example security group"
 
   ingress {
     from_port   = 22
     to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    protocol    = local.tcp_protocol
+    cidr_blocks = local.all_ips
   }
 
   ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    from_port   = local.http_port
+    to_port     = local.http_port
+    protocol    = local.tcp_protocol
+    cidr_blocks = local.all_ips
   }
 
   ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    from_port   = local.https_port
+    to_port     = local.https_port
+    protocol    = local.tcp_protocol
+    cidr_blocks = local.all_ips
   }
 
   egress {
-    from_port   = 0
-    to_port     = 0
+    from_port   = local.any_port
+    to_port     = local.any_port
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = local.all_ips
   }
 
   tags = {
@@ -64,13 +70,13 @@ resource "aws_security_group" "example_security_group" {
 # Resources to list iam users
 
 resource "aws_iam_instance_profile" "iam_readonly_profile" {
-  name = "example_instance_profile"
+  name = "${var.environment_name}_example_instance_profile"
 
   role = aws_iam_role.iam_readonly_role.name
 }
 
 resource "aws_iam_role" "iam_readonly_role" {
-  name = "iam_readonly_role"
+  name = "${var.environment_name}_iam_readonly_role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
